@@ -1,0 +1,11 @@
+# Gradle / build
+.gradle/
+build/
+
+# Run-time
+uploads/
+*.log
+
+# Env
+.env
+.env.*

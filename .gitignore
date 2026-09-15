@@ -1,0 +1,16 @@
+# Logs
+*.log
+app.log
+dev.log
+
+# Env files (keep the example)
+.env
+.env.*
+!.env.example
+
+# Stray placeholder dir
+car_rental/
+
+# OS
+.DS_Store
+Thumbs.db
