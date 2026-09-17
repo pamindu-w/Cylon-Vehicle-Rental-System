@@ -1,0 +1,1 @@
+ALTER TABLE cars ALTER COLUMN view_count TYPE BIGINT;

@@ -32,8 +32,11 @@ public class CarImage {
     @JoinColumn(name = "car_id", nullable = false)
     private Car car;
 
+    @Column(name = "content_type", nullable = false)
+    private String contentType;
+
     @Column(nullable = false)
-    private String url;
+    private byte[] data;
 
     @Builder.Default
     @Column(nullable = false)

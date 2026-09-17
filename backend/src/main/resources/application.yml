@@ -28,5 +28,6 @@ app:
     secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-1234567890}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000}
-  upload-dir: uploads
   seed-data: ${APP_SEED_DATA:true}
+  booking:
+    cancel-free-hours: ${BOOKING_CANCEL_FREE_HOURS:24}

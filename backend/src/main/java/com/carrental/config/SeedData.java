@@ -91,6 +91,20 @@ public class SeedData implements CommandLineRunner {
             log.info("Seeding demo foreigner owner user");
         }
 
+        if (userRepository.findByEmail("customer@test.com").isEmpty()) {
+            User customer = User.builder()
+                    .email("customer@test.com")
+                    .passwordHash(passwordEncoder.encode("test1234"))
+                    .fullName("Kamal Silva")
+                    .phone("+94771114455")
+                    .role(Role.CUSTOMER)
+                    .accountType(AccountType.LOCAL)
+                    .nic("832345678V")
+                    .build();
+            userRepository.save(customer);
+            log.info("Seeding demo customer user");
+        }
+
         seedCarIfMissing("Toyota", "Axio", CarType.SEDAN, "Colombo",
                 6.9324, 79.8509, new BigDecimal("9000"), owner);
         seedCarIfMissing("Suzuki", "Swift", CarType.SEDAN, "Kandy",

@@ -32,8 +32,22 @@ public class BookingController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BookingResponse> create(@Valid @RequestBody BookingRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(bookingService.create(request));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bookingService.create(request, currentUserResolver.get()));
+    }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<BookingResponse>> myRentals() {
+        return ResponseEntity.ok(bookingService.getMyRentals(currentUserResolver.get()));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<BookingResponse> cancel(@PathVariable Long id) {
+        return ResponseEntity.ok(bookingService.cancel(id, currentUserResolver.get()));
     }
 
     @GetMapping

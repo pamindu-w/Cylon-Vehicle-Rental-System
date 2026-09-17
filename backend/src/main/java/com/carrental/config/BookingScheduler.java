@@ -14,7 +14,7 @@ public class BookingScheduler {
     }
 
     @Scheduled(cron = "0 0 2 * * *")
-    public void completeExpiredBookings() {
-        bookingService.completeExpiredBookings();
+    public void processBookingLifecycle() {
+        bookingService.processScheduledTransitions();
     }
 }

@@ -25,9 +25,14 @@ public record BookingResponse(
         BigDecimal totalPrice,
         BookingStatus status,
         PaymentStatus paymentStatus,
-        Instant createdAt
+        Instant createdAt,
+        boolean hasReview
 ) {
     public static BookingResponse from(Booking booking) {
+        return from(booking, false);
+    }
+
+    public static BookingResponse from(Booking booking, boolean hasReview) {
         return new BookingResponse(
                 booking.getId(),
                 booking.getCar().getId(),
@@ -45,7 +50,8 @@ public record BookingResponse(
                 booking.getTotalPrice(),
                 booking.getStatus(),
                 booking.getPaymentStatus(),
-                booking.getCreatedAt()
+                booking.getCreatedAt(),
+                hasReview
         );
     }
 }

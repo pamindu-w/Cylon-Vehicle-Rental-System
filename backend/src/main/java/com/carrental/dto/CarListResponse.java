@@ -27,6 +27,7 @@ public record CarListResponse(
         CarStatus status,
         List<String> imageUrls,
         Double averageRating,
-        Long ratingCount
+        Long ratingCount,
+        Long viewCount
 ) {
 }

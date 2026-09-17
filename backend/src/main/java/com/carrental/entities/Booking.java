@@ -42,6 +42,10 @@ public class Booking {
     @JoinColumn(name = "car_id", nullable = false)
     private Car car;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(name = "guest_name", nullable = false)
     private String guestName;
 

@@ -32,7 +32,8 @@ public record CarResponse(
         List<String> imageUrls,
         List<Long> imageIds,
         Double averageRating,
-        Long ratingCount
+        Long ratingCount,
+        Long viewCount
 ) {
     public static CarResponse from(Car car) {
         List<CarImage> images = car.getImages() == null
@@ -40,7 +41,9 @@ public record CarResponse(
                 : car.getImages().stream()
                         .sorted(Comparator.comparing(CarImage::getSort))
                         .toList();
-        List<String> imageUrls = images.stream().map(CarImage::getUrl).toList();
+        List<String> imageUrls = images.stream()
+                .map(img -> "/api/images/" + img.getId())
+                .toList();
         List<Long> imageIds = images.stream().map(CarImage::getId).toList();
         return new CarResponse(
                 car.getId(),
@@ -64,7 +67,8 @@ public record CarResponse(
                 imageUrls,
                 imageIds,
                 null,
-                null
+                null,
+                car.getViewCount()
         );
     }
 }

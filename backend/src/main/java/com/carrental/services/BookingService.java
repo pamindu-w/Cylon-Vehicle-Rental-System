@@ -5,14 +5,19 @@ import com.carrental.dto.BookingResponse;
 import com.carrental.entities.Booking;
 import com.carrental.entities.Car;
 import com.carrental.entities.User;
+import com.carrental.entities.enums.AccountType;
 import com.carrental.entities.enums.BookingStatus;
+import com.carrental.entities.enums.IdType;
 import com.carrental.repositories.BookingRepository;
 import com.carrental.repositories.CarRepository;
+import com.carrental.repositories.ReviewRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +28,21 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final CarRepository carRepository;
+    private final ReviewRepository reviewRepository;
+    private final int cancelFreeHours;
 
-    public BookingService(BookingRepository bookingRepository, CarRepository carRepository) {
+    public BookingService(BookingRepository bookingRepository,
+                          CarRepository carRepository,
+                          ReviewRepository reviewRepository,
+                          @Value("${app.booking.cancel-free-hours}") int cancelFreeHours) {
         this.bookingRepository = bookingRepository;
         this.carRepository = carRepository;
+        this.reviewRepository = reviewRepository;
+        this.cancelFreeHours = cancelFreeHours;
     }
 
     @Transactional
-    public BookingResponse create(@Valid BookingRequest request) {
+    public BookingResponse create(@Valid BookingRequest request, User customer) {
         Car car = carRepository.findById(request.carId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Car not found"));
 
@@ -58,16 +70,19 @@ public class BookingService {
                     "This car is already booked for the requested dates");
         }
 
+        boolean withDriver = request.withDriver();
+        boolean isLocal = customer.getAccountType() == AccountType.LOCAL;
         Booking booking = Booking.builder()
                 .car(car)
-                .guestName(request.guestName().trim())
-                .guestEmail(request.guestEmail().toLowerCase().trim())
-                .guestPhone(request.guestPhone().trim())
-                .guestIdType(request.guestIdType())
-                .guestIdNumber(request.guestIdNumber().trim())
+                .user(customer)
+                .guestName(customer.getFullName().trim())
+                .guestEmail(customer.getEmail().toLowerCase().trim())
+                .guestPhone(customer.getPhone().trim())
+                .guestIdType(isLocal ? IdType.NIC : IdType.PASSPORT)
+                .guestIdNumber((isLocal ? customer.getNic() : customer.getPassportNo()).trim())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
-                .withDriver(request.withDriver())
+                .withDriver(withDriver)
                 .pickupLocation(request.pickupLocation())
                 .totalPrice(totalPrice)
                 .status(BookingStatus.PENDING)
@@ -80,6 +95,26 @@ public class BookingService {
     public BookingResponse getForOwner(Long bookingId, User owner) {
         Booking booking = getOwnedBooking(bookingId, owner);
         return BookingResponse.from(booking);
+    }
+
+    @Transactional
+    public BookingResponse cancel(Long bookingId, User customer) {
+        Booking booking = getCustomerBooking(bookingId, customer);
+        if (!BookingPolicy.canCancel(booking.getStatus(), LocalDateTime.now(),
+                booking.getStartDate(), cancelFreeHours)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This booking can no longer be cancelled online. Please contact the owner.");
+        }
+        booking.setStatus(BookingStatus.CANCELLED);
+        return BookingResponse.from(bookingRepository.save(booking));
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookingResponse> getMyRentals(User customer) {
+        return bookingRepository.findByUserIdOrderByCreatedAtDesc(customer.getId()).stream()
+                .map(booking -> BookingResponse.from(booking,
+                        reviewRepository.existsByBookingId(booking.getId())))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +153,29 @@ public class BookingService {
         }
     }
 
+    @Transactional
+    public void processScheduledTransitions() {
+        List<Booking> toActivate = bookingRepository.findByStatusAndStartDateLessThanEqual(
+                BookingStatus.CONFIRMED, LocalDate.now());
+        for (Booking booking : toActivate) {
+            booking.setStatus(BookingStatus.ACTIVE);
+        }
+        if (!toActivate.isEmpty()) {
+            bookingRepository.saveAll(toActivate);
+        }
+
+        List<Booking> stalePending = bookingRepository.findByStatusAndStartDateBefore(
+                BookingStatus.PENDING, LocalDate.now());
+        for (Booking booking : stalePending) {
+            booking.setStatus(BookingStatus.CANCELLED);
+        }
+        if (!stalePending.isEmpty()) {
+            bookingRepository.saveAll(stalePending);
+        }
+
+        completeExpiredBookings();
+    }
+
     @Transactional(readOnly = true)
     public List<BookingResponse> getAllBookings() {
         return bookingRepository.findAllByOrderByCreatedAtDesc().stream()
@@ -143,11 +201,23 @@ public class BookingService {
     }
 
     private Booking getOwnedBooking(Long bookingId, User owner) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        Booking booking = findBooking(bookingId);
         if (!booking.getCar().getOwner().getId().equals(owner.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not manage this booking");
         }
         return booking;
+    }
+
+    private Booking getCustomerBooking(Long bookingId, User customer) {
+        Booking booking = findBooking(bookingId);
+        if (booking.getUser() == null || !booking.getUser().getId().equals(customer.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not manage this booking");
+        }
+        return booking;
+    }
+
+    private Booking findBooking(Long bookingId) {
+        return bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
     }
 }

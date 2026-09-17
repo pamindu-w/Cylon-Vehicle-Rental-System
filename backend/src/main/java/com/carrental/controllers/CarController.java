@@ -4,13 +4,11 @@ import com.carrental.dto.CarListResponse;
 import com.carrental.dto.CarRequest;
 import com.carrental.dto.CarResponse;
 import com.carrental.dto.MessageResponse;
-import com.carrental.dto.UploadResponse;
 import com.carrental.entities.enums.CarStatus;
 import com.carrental.entities.enums.CarType;
 import com.carrental.entities.enums.Transmission;
 import com.carrental.services.CarService;
 import com.carrental.services.CurrentUserResolver;
-import com.carrental.services.UploadService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,14 +33,10 @@ public class CarController {
 
     private final CarService carService;
     private final CurrentUserResolver currentUserResolver;
-    private final UploadService uploadService;
 
-    public CarController(CarService carService,
-                         CurrentUserResolver currentUserResolver,
-                         UploadService uploadService) {
+    public CarController(CarService carService, CurrentUserResolver currentUserResolver) {
         this.carService = carService;
         this.currentUserResolver = currentUserResolver;
-        this.uploadService = uploadService;
     }
 
     @GetMapping
@@ -61,6 +56,12 @@ public class CarController {
         return ResponseEntity.ok(carService.getPublicCar(id));
     }
 
+    @PostMapping("/{id}/view")
+    public ResponseEntity<Void> recordView(@PathVariable Long id) {
+        carService.recordView(id);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/mine")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<List<CarListResponse>> mine() {
@@ -73,10 +74,12 @@ public class CarController {
         return ResponseEntity.ok(carService.getCarForOwner(id, currentUserResolver.get()));
     }
 
-    @PostMapping
+    @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("hasRole('OWNER')")
-    public ResponseEntity<CarResponse> create(@Valid @RequestBody CarRequest request) {
-        return ResponseEntity.ok(carService.createCar(request, currentUserResolver.get()));
+    public ResponseEntity<CarResponse> create(
+            @RequestPart("car") @Valid CarRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return ResponseEntity.ok(carService.createCar(request, currentUserResolver.get(), files));
     }
 
     @PutMapping("/{id}")
@@ -97,11 +100,7 @@ public class CarController {
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<CarResponse> uploadImages(@PathVariable Long id,
                                                     @RequestParam("files") List<MultipartFile> files) {
-        List<String> urls = files.stream()
-                .map(uploadService::store)
-                .map(UploadResponse::url)
-                .toList();
-        return ResponseEntity.ok(carService.addImages(id, urls, currentUserResolver.get()));
+        return ResponseEntity.ok(carService.addImages(id, files, currentUserResolver.get()));
     }
 
     @DeleteMapping("/{id}/images/{imageId}")

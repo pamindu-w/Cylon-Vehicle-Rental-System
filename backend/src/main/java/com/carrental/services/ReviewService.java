@@ -4,6 +4,7 @@ import com.carrental.dto.ReviewRequest;
 import com.carrental.dto.ReviewResponse;
 import com.carrental.entities.Booking;
 import com.carrental.entities.Review;
+import com.carrental.entities.User;
 import com.carrental.entities.enums.BookingStatus;
 import com.carrental.repositories.BookingRepository;
 import com.carrental.repositories.ReviewRepository;
@@ -26,10 +27,13 @@ public class ReviewService {
     }
 
     @Transactional
-    public ReviewResponse create(@Valid ReviewRequest request) {
+    public ReviewResponse create(@Valid ReviewRequest request, User customer) {
         Booking booking = bookingRepository.findById(request.bookingId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 
+        if (booking.getUser() == null || !booking.getUser().getId().equals(customer.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only review your own bookings");
+        }
         if (booking.getStatus() != BookingStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Reviews can only be left for completed bookings");

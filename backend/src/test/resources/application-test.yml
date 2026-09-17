@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///car_rental_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  seed-data: false
+  jwt:
+    secret: test-only-secret-key-0123456789abcdef0123456789abcdef
+    expiration-ms: 86400000
+  booking:
+    cancel-free-hours: 24

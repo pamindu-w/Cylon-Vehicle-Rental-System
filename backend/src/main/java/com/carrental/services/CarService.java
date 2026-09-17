@@ -13,6 +13,8 @@ import com.carrental.entities.enums.Transmission;
 import com.carrental.repositories.CarRepository;
 import com.carrental.repositories.ReviewRepository;
 import com.carrental.repositories.BookingRepository;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -20,6 +22,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -79,6 +82,13 @@ public class CarService {
         return toResponse(car);
     }
 
+    @Transactional
+    public void recordView(Long id) {
+        carRepository.findById(id)
+                .filter(car -> car.getStatus() == CarStatus.ACTIVE)
+                .ifPresent(car -> carRepository.incrementViewCount(id));
+    }
+
     @Transactional(readOnly = true)
     public CarResponse getCarForOwner(Long carId, User owner) {
         Car car = carRepository.findById(carId)
@@ -123,7 +133,7 @@ public class CarService {
     }
 
     @Transactional
-    public CarResponse createCar(CarRequest request, User owner) {
+    public CarResponse createCar(CarRequest request, User owner, List<MultipartFile> files) {
         Car car = Car.builder()
                 .owner(owner)
                 .make(request.make().trim())
@@ -142,6 +152,7 @@ public class CarService {
                 .description(request.description())
                 .status(request.status() == null ? CarStatus.DRAFT : request.status())
                 .build();
+        attachImages(car, files);
         Car saved = carRepository.save(car);
         return toResponse(saved);
     }
@@ -177,15 +188,9 @@ public class CarService {
     }
 
     @Transactional
-    public CarResponse addImages(Long carId, List<String> urls, User owner) {
+    public CarResponse addImages(Long carId, List<MultipartFile> files, User owner) {
         Car car = getOwnedCar(carId, owner);
-        int sort = car.getImages().stream()
-                .mapToInt(CarImage::getSort)
-                .max()
-                .orElse(-1) + 1;
-        for (String url : urls) {
-            car.getImages().add(CarImage.builder().car(car).url(url).sort(sort++).build());
-        }
+        attachImages(car, files);
         return toResponse(carRepository.save(car));
     }
 
@@ -197,6 +202,33 @@ public class CarService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found");
         }
         carRepository.save(car);
+    }
+
+    private void attachImages(Car car, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+        int sort = car.getImages().stream()
+                .mapToInt(CarImage::getSort)
+                .max()
+                .orElse(-1) + 1;
+        for (MultipartFile file : files) {
+            ImageValidation.validate(file);
+            car.getImages().add(CarImage.builder()
+                    .car(car)
+                    .contentType(file.getContentType())
+                    .data(readBytes(file))
+                    .sort(sort++)
+                    .build());
+        }
+    }
+
+    private byte[] readBytes(MultipartFile file) {
+        try (InputStream in = file.getInputStream()) {
+            return in.readAllBytes();
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read uploaded file");
+        }
     }
 
     private Car getOwnedCar(Long carId, User owner) {
@@ -212,13 +244,14 @@ public class CarService {
         Double avg = reviewRepository.averageRatingForCar(car.getId());
         Long count = reviewRepository.findByCarIdOrderByCreatedAtDesc(car.getId()).stream().count();
         List<String> imageUrls = car.getImages() == null ? List.of()
-                : car.getImages().stream().sorted(Comparator.comparing(CarImage::getSort)).map(CarImage::getUrl).toList();
+                : car.getImages().stream().sorted(Comparator.comparing(CarImage::getSort))
+                        .map(img -> "/api/images/" + img.getId()).toList();
         return new CarListResponse(
                 car.getId(), car.getOwner().getId(), car.getOwner().getFullName(),
                 car.getMake(), car.getModel(), car.getYear(), car.getType(), car.getTransmission(),
                 car.getSeats(), car.getFuel(), car.getDailyPrice(), car.isWithDriver(),
                 car.getDriverDailyPrice(), car.getCity(), car.getLat(), car.getLng(), car.getStatus(),
-                imageUrls, avg, count
+                imageUrls, avg, count, car.getViewCount()
         );
     }
 
@@ -226,14 +259,16 @@ public class CarService {
         Double avg = reviewRepository.averageRatingForCar(car.getId());
         List<CarImage> images = car.getImages() == null ? List.of()
                 : car.getImages().stream().sorted(Comparator.comparing(CarImage::getSort)).toList();
-        List<String> imageUrls = images.stream().map(CarImage::getUrl).toList();
+        List<String> imageUrls = images.stream()
+                .map(img -> "/api/images/" + img.getId())
+                .toList();
         List<Long> imageIds = images.stream().map(CarImage::getId).toList();
         return new CarResponse(
                 car.getId(), car.getOwner().getId(), car.getOwner().getFullName(),
                 car.getMake(), car.getModel(), car.getYear(), car.getType(), car.getTransmission(),
                 car.getSeats(), car.getFuel(), car.getDailyPrice(), car.isWithDriver(),
                 car.getDriverDailyPrice(), car.getCity(), car.getLat(), car.getLng(), car.getDescription(),
-                car.getStatus(), imageUrls, imageIds, avg, null
+                car.getStatus(), imageUrls, imageIds, avg, null, car.getViewCount()
         );
     }
 

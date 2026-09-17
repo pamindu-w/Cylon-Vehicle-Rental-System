@@ -67,8 +67,11 @@ public class User {
 
     private String nationality;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
+    @Column(name = "avatar_data")
+    private byte[] avatarData;
+
+    @Column(name = "avatar_content_type")
+    private String avatarContentType;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;

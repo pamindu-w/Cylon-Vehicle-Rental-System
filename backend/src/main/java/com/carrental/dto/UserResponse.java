@@ -19,6 +19,9 @@ public record UserResponse(
         boolean enabled
 ) {
     public static UserResponse from(User user) {
+        String avatarUrl = user.getAvatarData() != null
+                ? "/api/users/" + user.getId() + "/avatar"
+                : null;
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
@@ -30,7 +33,7 @@ public record UserResponse(
                 user.getNic(),
                 user.getPassportNo(),
                 user.getNationality(),
-                user.getAvatarUrl(),
+                avatarUrl,
                 user.isEnabled()
         );
     }

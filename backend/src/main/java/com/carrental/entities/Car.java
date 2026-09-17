@@ -104,6 +104,10 @@ public class Car {
     private Instant createdAt;
 
     @Builder.Default
+    @Column(name = "view_count", nullable = false)
+    private Long viewCount = 0L;
+
+    @Builder.Default
     @OneToMany(mappedBy = "car", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CarImage> images = new ArrayList<>();
 
