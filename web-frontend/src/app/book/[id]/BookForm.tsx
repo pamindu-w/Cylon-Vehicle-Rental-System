@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { bookingsApi, carsApi, imageUrl } from "@/lib/api";
-import { ApiError, type Booking, type Car, type IdType } from "@/lib/types";
+import { ApiError, type Booking, type Car } from "@/lib/types";
 import { formatPrice, formatDate, rentalDays, today } from "@/lib/utils";
-import { Alert, Checkbox, Field, Input, PrimaryButton, Select, Spinner } from "@/components/ui";
+import { Alert, Checkbox, Field, Input, PrimaryButton, Spinner } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useAuth } from "@/lib/auth";
 
 export default function BookForm({
   carId,
@@ -19,6 +21,10 @@ export default function BookForm({
   initialEnd: string;
   initialWithDriver: boolean;
 }) {
+  const router = useRouter();
+  const { user, token } = useAuth();
+  const isCustomer = user?.role === "CUSTOMER";
+
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -27,11 +33,6 @@ export default function BookForm({
   const [end, setEnd] = useState(initialEnd);
   const [withDriver, setWithDriver] = useState(initialWithDriver);
 
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestIdType, setGuestIdType] = useState<IdType>("NIC");
-  const [guestIdNumber, setGuestIdNumber] = useState("");
   const [pickupLocation, setPickupLocation] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -55,16 +56,12 @@ export default function BookForm({
   const datesValid = Boolean(start && end && new Date(end) >= new Date(start));
 
   async function submit() {
+    if (!token) return;
     setError("");
     setSubmitting(true);
     try {
-      const booking = await bookingsApi.create({
+      const booking = await bookingsApi.create(token, {
         carId,
-        guestName,
-        guestEmail,
-        guestPhone,
-        guestIdType,
-        guestIdNumber,
         startDate: start,
         endDate: end,
         withDriver,
@@ -89,13 +86,17 @@ export default function BookForm({
   }
 
   if (done) {
+    const statusLabel =
+      done.status === "CANCELLED"
+        ? "Your booking was cancelled."
+        : done.status === "CONFIRMED"
+          ? "The owner confirmed your booking."
+          : "Done — the owner will confirm you as soon as possible.";
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
           <h1 className="text-xl font-bold text-emerald-800">Booking received 🎉</h1>
-          <p className="mt-1 text-sm text-emerald-700">
-            Your booking is <b>pending</b> — the owner will confirm shortly. No payment was taken.
-          </p>
+          <p className="mt-1 text-sm text-emerald-700">{statusLabel}</p>
         </div>
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -106,7 +107,7 @@ export default function BookForm({
           </div>
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between border-b border-slate-100 pb-1">
-              <dt className="text-slate-500">Guest</dt>
+              <dt className="text-slate-500">Renter</dt>
               <dd className="font-semibold text-slate-800">{done.guestName}</dd>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-1">
@@ -136,9 +137,11 @@ export default function BookForm({
               <dd className="text-sm font-extrabold text-amber-700">{formatPrice(done.totalPrice)}</dd>
             </div>
           </dl>
-          <p className="mt-4 text-xs text-slate-500">
-            Reference: please note your booking number {done.id} when contacting the owner.
-          </p>
+        </div>
+        <div className="mt-4 flex items-center justify-center gap-4">
+          <Link href="/my-rentals" className="font-semibold text-amber-600 hover:text-amber-700">
+            View in My rentals →
+          </Link>
         </div>
         <div className="mt-4 text-center">
           <Link href="/" className="font-semibold text-amber-600 hover:text-amber-700">
@@ -148,6 +151,28 @@ export default function BookForm({
       </div>
     );
   }
+
+  if (!isCustomer || !user) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900">You need an account to book</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            Browsing cars is free and open to everyone. To place a rental request and track whether
+            the owner confirms or declines it, sign up as a renter first.
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <PrimaryButton onClick={() => router.push("/register")}>Create a renter account</PrimaryButton>
+            <Link href="/login" className="font-semibold text-amber-600 hover:text-amber-700">
+              Already have an account? Sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const idLabel = user.accountType === "FOREIGNER" ? `Passport: ${user.passportNo}` : `NIC: ${user.nic}`;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -167,7 +192,8 @@ export default function BookForm({
         <section className="lg:col-span-3">
           <h1 className="text-2xl font-bold text-slate-900">Confirm your booking</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Rent as a guest — no account required. The owner confirms your request by email.
+            Your details come from your account. The owner confirms your request and you&apos;ll see
+            the result in <b>My rentals</b>.
           </p>
 
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
@@ -220,53 +246,24 @@ export default function BookForm({
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-slate-900">Your details</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Full name">
-                <Input
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="As on your ID"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </Field>
-              <Field label="Phone">
-                <Input
-                  type="tel"
-                  value={guestPhone}
-                  onChange={(e) => setGuestPhone(e.target.value)}
-                  placeholder="+94 77 123 4567"
-                />
-              </Field>
-              <Field label="ID type">
-                <Select
-                  value={guestIdType}
-                  onChange={(e) => setGuestIdType(e.target.value as IdType)}
-                >
-                  <option value="NIC">Sri Lankan NIC</option>
-                  <option value="PASSPORT">Passport</option>
-                </Select>
-              </Field>
-              <Field
-                label={guestIdType === "NIC" ? "NIC number" : "Passport number"}
-                hint={
-                  guestIdType === "NIC"
-                    ? "e.g. 851234567V or 199532144556"
-                    : "For foreign/visitor renters"
-                }
-              >
-                <Input
-                  value={guestIdNumber}
-                  onChange={(e) => setGuestIdNumber(e.target.value)}
-                />
-              </Field>
+            <h2 className="font-bold text-slate-900">Renting as</h2>
+            <div className="mt-3 grid gap-2 text-sm">
+              <div className="flex justify-between border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">Name</dt>
+                <dd className="font-semibold text-slate-800">{user.fullName}</dd>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">Email</dt>
+                <dd className="font-semibold text-slate-800">{user.email}</dd>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">Phone</dt>
+                <dd className="font-semibold text-slate-800">{user.phone}</dd>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">ID</dt>
+                <dd className="font-semibold text-slate-800">{idLabel}</dd>
+              </div>
               <Field label="Pickup location" hint="Optional">
                 <Input
                   value={pickupLocation}
@@ -304,7 +301,7 @@ export default function BookForm({
             </div>
             <PrimaryButton
               className="mt-4 w-full"
-              disabled={submitting || !datesValid || !guestName || !guestEmail || !guestPhone || !guestIdNumber}
+              disabled={submitting || !datesValid}
               onClick={submit}
             >
               {submitting ? "Booking…" : "Confirm booking"}
@@ -318,7 +315,7 @@ export default function BookForm({
               </div>
             ) : null}
             <p className="mt-3 text-center text-xs text-slate-500">
-              Free cancellation until the owner confirms.
+              Free cancellation while your booking is pending — and up to 24 hours before pickup once confirmed.
             </p>
           </div>
         </aside>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { imageUrl } from "@/lib/api";
 import { initialField } from "@/lib/utils";
 
 export function Logo() {
@@ -46,13 +47,21 @@ export default function Header() {
             <Link href="/dashboard" className="hover:text-amber-600">
               Dashboard
             </Link>
+          ) : user?.role === "CUSTOMER" ? (
+            <Link href="/my-rentals" className="hover:text-amber-600">
+              My rentals
+            </Link>
           ) : null}
         </nav>
         <div className="flex items-center gap-3">
           {loading ? null : user ? (
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
-                {initialField(user.fullName)}
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-sm font-bold text-amber-700">
+                {user.avatarUrl ? (
+                  <img src={imageUrl(user.avatarUrl)} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  initialField(user.fullName)
+                )}
               </div>
               <div className="hidden text-right sm:block">
                 <div className="text-sm font-semibold leading-tight text-slate-900">{user.fullName}</div>

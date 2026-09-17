@@ -54,6 +54,14 @@ export default function CarDetailPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!Number.isFinite(id)) return;
+    const key = `lankawheels_viewed_${id}`;
+    if (window.sessionStorage.getItem(key)) return;
+    window.sessionStorage.setItem(key, "1");
+    carsApi.recordView(id).catch(() => {});
+  }, [id]);
+
   if (loading) return <Spinner label="Loading car…" />;
 
   if (error || !car) {
@@ -172,7 +180,7 @@ export default function CarDetailPage() {
           <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
             <p className="font-semibold text-slate-800">Good to know</p>
             <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
-              <li>Book as a guest — no account needed.</li>
+              <li>Register as a renter to book — it&apos;s free.</li>
               <li>A car is considered available if it isn&apos;t reserved for your dates.</li>
               <li>Local renters use their NIC; foreigners use a passport.</li>
               <li>Online payment (PayHere / Stripe) is coming soon.</li>

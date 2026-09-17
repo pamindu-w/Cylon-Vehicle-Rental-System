@@ -8,26 +8,30 @@ import { ApiError, type AccountType } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { Alert, Field, Input, PrimaryButton } from "@/components/ui";
 
-const TABS: { value: AccountType; label: string; description: string }[] = [
+const ACCOUNT_TABS: { value: AccountType; label: string; description: string }[] = [
   {
     value: "LOCAL",
-    label: "Sri Lankan owner",
+    label: "Sri Lankan",
     description: "Register with your national NIC",
   },
   {
     value: "FOREIGNER",
-    label: "Foreign agency",
+    label: "Foreigner",
     description: "Register with your passport + nationality",
   },
 ];
 
+type Mode = "RENTER" | "OWNER";
+
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const [mode, setMode] = useState<Mode>("RENTER");
   const [tab, setTab] = useState<AccountType>("LOCAL");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,19 +45,19 @@ export default function RegisterPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await authApi.register({
-        email,
-        password,
-        fullName,
-        businessName,
-        phone,
-        accountType: tab,
-        ...(tab === "LOCAL" ? { nic } : { passportNo, nationality }),
-      });
+      const identity = tab === "LOCAL" ? { nic } : { passportNo, nationality };
+      const res =
+        mode === "RENTER"
+          ? await authApi.registerCustomer({ email, password, fullName, phone, accountType: tab, ...identity })
+          : await authApi.register({ email, password, fullName, businessName, phone, accountType: tab, ...identity });
       login(res.token, res.user);
-      router.push("/dashboard");
+      router.push(mode === "RENTER" ? "/my-rentals" : "/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed");
     } finally {
@@ -64,13 +68,34 @@ export default function RegisterPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Register your car</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Advertiser accounts only — owners and agencies. Renters never need an account.
+          Renters book cars and track their bookings. Owners and agencies list vehicles.
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
-          {TABS.map((t) => (
+          <button
+            type="button"
+            onClick={() => setMode("RENTER")}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              mode === "RENTER" ? "bg-white text-amber-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            I&apos;m renting a car
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("OWNER")}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              mode === "OWNER" ? "bg-white text-amber-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            I&apos;m an owner / agency
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          {ACCOUNT_TABS.map((t) => (
             <button
               key={t.value}
               type="button"
@@ -86,7 +111,7 @@ export default function RegisterPage() {
           ))}
         </div>
         <p className="mt-2 text-center text-xs text-slate-500">
-          {TABS.find((t) => t.value === tab)?.description}
+          {ACCOUNT_TABS.find((t) => t.value === tab)?.description}
         </p>
 
         <form onSubmit={submit} className="mt-4 space-y-4">
@@ -96,7 +121,24 @@ export default function RegisterPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="owner@example.com"
+                placeholder="you@example.com"
+                required
+              />
+            </Field>
+            <Field label="Phone">
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+94 77 123 4567"
+                required
+              />
+            </Field>
+            <Field label="Full name">
+              <Input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="As on your ID"
                 required
               />
             </Field>
@@ -110,25 +152,21 @@ export default function RegisterPage() {
                 required
               />
             </Field>
-            <Field label="Full name">
+            <Field label="Confirm password">
               <Input
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat password"
+                minLength={8}
                 required
               />
             </Field>
-            <Field label="Business name" hint="Optional">
-              <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
-            </Field>
-            <Field label="Phone">
-              <Input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+94 77 123 4567"
-                required
-              />
-            </Field>
+            {mode === "OWNER" ? (
+              <Field label="Business name" hint="Optional">
+                <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+              </Field>
+            ) : null}
 
             {tab === "LOCAL" ? (
               <Field
@@ -151,7 +189,11 @@ export default function RegisterPage() {
 
           {error ? <Alert kind="error">{error}</Alert> : null}
           <PrimaryButton className="w-full" disabled={submitting} type="submit">
-            {submitting ? "Creating account…" : "Register & start listing"}
+            {submitting
+              ? "Creating account…"
+              : mode === "RENTER"
+                ? "Create account & start booking"
+                : "Register & start listing"}
           </PrimaryButton>
         </form>
         <p className="mt-4 text-center text-sm text-slate-500">

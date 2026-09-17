@@ -23,7 +23,13 @@ export default function LoginPage() {
     try {
       const res = await authApi.login(email, password);
       login(res.token, res.user);
-      router.push(res.user.role === "ADMIN" ? "/admin" : "/dashboard");
+      router.push(
+        res.user.role === "ADMIN"
+          ? "/admin"
+          : res.user.role === "OWNER"
+            ? "/dashboard"
+            : "/my-rentals",
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sign in failed");
     } finally {
@@ -34,9 +40,9 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-16">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Owner sign in</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Sign in</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Car owners and agencies sign in to manage their listings.
+          Renters, car owners and agencies all sign in here.
         </p>
         <form onSubmit={submit} className="mt-5 space-y-4">
           <Field label="Email">
@@ -64,7 +70,7 @@ export default function LoginPage() {
         <p className="mt-4 text-center text-sm text-slate-500">
           New here?{" "}
           <Link href="/register" className="font-semibold text-amber-600 hover:text-amber-700">
-            Register as an owner or agency
+            Create an account
           </Link>
         </p>
       </div>

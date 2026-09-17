@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
+import { imageUrl } from "@/lib/api";
 import { initialField } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 
@@ -39,8 +40,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
-                {initialField(user?.fullName ?? "?")}
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
+                {user?.avatarUrl ? (
+                  <img src={imageUrl(user.avatarUrl)} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  initialField(user?.fullName ?? "?")
+                )}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-slate-900">{user?.fullName}</div>

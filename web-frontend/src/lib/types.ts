@@ -1,4 +1,4 @@
-export type Role = "OWNER" | "ADMIN";
+export type Role = "OWNER" | "ADMIN" | "CUSTOMER";
 export type AccountType = "LOCAL" | "FOREIGNER";
 export type CarType =
   | "SEDAN"
@@ -78,6 +78,7 @@ export interface CarList {
   imageUrls: string[];
   averageRating: number | null;
   ratingCount: number;
+  viewCount: number;
 }
 
 export interface Car extends CarList {
@@ -103,6 +104,7 @@ export interface Booking {
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   createdAt: string | null;
+  hasReview: boolean;
 }
 
 export interface Review {
@@ -133,6 +135,17 @@ export interface RegisterInput {
   nationality?: string;
 }
 
+export interface CustomerRegisterInput {
+  email: string;
+  password: string;
+  fullName: string;
+  phone: string;
+  accountType: AccountType;
+  nic?: string;
+  passportNo?: string;
+  nationality?: string;
+}
+
 export interface CarInput {
   make: string;
   model: string;
@@ -153,11 +166,6 @@ export interface CarInput {
 
 export interface BookingInput {
   carId: number;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
-  guestIdType: IdType;
-  guestIdNumber: string;
   startDate: string;
   endDate: string;
   withDriver: boolean;
@@ -168,6 +176,12 @@ export interface ReviewInput {
   bookingId: number;
   rating: number;
   comment?: string;
+}
+
+export interface ProfileInput {
+  fullName: string;
+  businessName?: string;
+  phone: string;
 }
 
 export interface CarFilters {

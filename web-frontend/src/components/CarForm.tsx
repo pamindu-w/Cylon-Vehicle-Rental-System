@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { carsApi } from "@/lib/api";
 import { ApiError, CAR_TYPES, FUEL_TYPES, type Car, type CarInput, type CarStatus, type CarType, type Transmission } from "@/lib/types";
-import { Alert, Checkbox, Field, Input, PrimaryButton, Select, Textarea } from "@/components/ui";
+import { Alert, Checkbox, Field, GhostButton, Input, PrimaryButton, Select, Textarea } from "@/components/ui";
 
 export default function CarForm({ car, token }: { car?: Car; token: string }) {
   const editing = Boolean(car);
@@ -23,9 +23,28 @@ export default function CarForm({ car, token }: { car?: Car; token: string }) {
   const [description, setDescription] = useState(car?.description ?? "");
   const [status, setStatus] = useState<CarStatus>(car?.status ?? "DRAFT");
 
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [createdId, setCreatedId] = useState<number | null>(null);
+
+  function pickFiles(list: FileList | null) {
+    if (!list) return;
+    setFileError("");
+    const incoming = Array.from(list);
+    const tooBig = incoming.some((f) => f.size > 5 * 1024 * 1024);
+    const badType = incoming.some((f) => !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(f.type));
+    if (tooBig || badType) {
+      setFileError("Each photo must be JPG/PNG/WebP and up to 5 MB.");
+      return;
+    }
+    setFiles((prev) => [...prev, ...incoming].slice(0, 10));
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +68,12 @@ export default function CarForm({ car, token }: { car?: Car; token: string }) {
         description: description.trim() || undefined,
         status,
       };
-      await (editing && car ? carsApi.update(token, car.id, payload) : carsApi.create(token, payload));
+      if (editing && car) {
+        await carsApi.update(token, car.id, payload);
+      } else {
+        const created = await carsApi.create(token, payload, files);
+        setCreatedId(created.id);
+      }
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save car");
@@ -63,7 +87,11 @@ export default function CarForm({ car, token }: { car?: Car; token: string }) {
       {saved ? (
         <Alert kind="success">
           Car {editing ? "updated" : "created"} successfully.
-          {editing ? (
+          {createdId ? (
+            <a href={`/dashboard/cars/${createdId}`} className="ml-2 font-semibold underline">
+              Manage photos
+            </a>
+          ) : editing ? (
             <a href={`/dashboard/cars/${car?.id}`} className="ml-2 font-semibold underline">
               Edit photos
             </a>
@@ -142,6 +170,55 @@ export default function CarForm({ car, token }: { car?: Car; token: string }) {
           </div>
         ) : null}
       </div>
+      {!editing ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Photos</div>
+              <div className="text-xs text-slate-500">
+                Add up to 10 photos of your vehicle. JPG/PNG/WebP, up to 5 MB each.
+              </div>
+            </div>
+            <GhostButton type="button" onClick={() => fileRef.current?.click()}>
+              + Add photos
+            </GhostButton>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => pickFiles(e.target.files)}
+            />
+          </div>
+          {fileError ? (
+            <div className="mt-3">
+              <Alert kind="error">{fileError}</Alert>
+            </div>
+          ) : null}
+          {files.length > 0 ? (
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {files.map((file, i) => (
+                <div key={`${file.name}-${i}`} className="group relative">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt=""
+                    className="aspect-[4/3] w-full rounded-lg object-cover shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs text-white opacity-0 shadow transition group-hover:opacity-100"
+                    aria-label="Remove image"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <Field label="Description" hint="Optional">
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Condition, features, notes…" />
       </Field>

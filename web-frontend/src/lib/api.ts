@@ -12,6 +12,8 @@ import {
   type CarInput,
   type CarList,
   type CarStatus,
+  type CustomerRegisterInput,
+  type ProfileInput,
   type RegisterInput,
   type Review,
   type ReviewInput,
@@ -79,6 +81,9 @@ export const authApi = {
   register(input: RegisterInput): Promise<AuthResponse> {
     return request<AuthResponse>("/api/auth/register", { method: "POST", body: input });
   },
+  registerCustomer(input: CustomerRegisterInput): Promise<AuthResponse> {
+    return request<AuthResponse>("/api/auth/register/customer", { method: "POST", body: input });
+  },
   login(email: string, password: string): Promise<AuthResponse> {
     return request<AuthResponse>("/api/auth/login", {
       method: "POST",
@@ -87,6 +92,14 @@ export const authApi = {
   },
   me(token: string): Promise<User> {
     return request<User>("/api/auth/me", { token });
+  },
+  updateProfile(token: string, input: ProfileInput): Promise<User> {
+    return request<User>("/api/auth/me", { method: "PATCH", token, body: input });
+  },
+  uploadAvatar(token: string, file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<User>("/api/auth/me/avatar", { method: "POST", token, formData });
   },
 };
 
@@ -97,14 +110,20 @@ export const carsApi = {
   get(id: number): Promise<Car> {
     return request<Car>(`/api/cars/${id}`);
   },
+  recordView(id: number): Promise<unknown> {
+    return request<unknown>(`/api/cars/${id}/view`, { method: "POST" });
+  },
   mine(token: string): Promise<CarList[]> {
     return request<CarList[]>("/api/cars/mine", { token });
   },
   getForOwner(token: string, id: number): Promise<Car> {
     return request<Car>(`/api/cars/${id}/owner`, { token });
   },
-  create(token: string, input: CarInput): Promise<Car> {
-    return request<Car>("/api/cars", { method: "POST", token, body: input });
+  create(token: string, input: CarInput, files: File[] = []): Promise<Car> {
+    const formData = new FormData();
+    formData.append("car", JSON.stringify(input));
+    files.forEach((file) => formData.append("files", file));
+    return request<Car>("/api/cars", { method: "POST", token, formData });
   },
   update(token: string, id: number, input: CarInput): Promise<Car> {
     return request<Car>(`/api/cars/${id}`, { method: "PUT", token, body: input });
@@ -123,8 +142,14 @@ export const carsApi = {
 };
 
 export const bookingsApi = {
-  create(input: BookingInput): Promise<Booking> {
-    return request<Booking>("/api/bookings", { method: "POST", body: input });
+  create(token: string, input: BookingInput): Promise<Booking> {
+    return request<Booking>("/api/bookings", { method: "POST", token, body: input });
+  },
+  myRentals(token: string): Promise<Booking[]> {
+    return request<Booking[]>("/api/bookings/mine", { token });
+  },
+  cancel(token: string, id: number): Promise<Booking> {
+    return request<Booking>(`/api/bookings/${id}/cancel`, { method: "POST", token });
   },
   mine(token: string): Promise<Booking[]> {
     return request<Booking[]>("/api/bookings", { token });
@@ -141,8 +166,8 @@ export const bookingsApi = {
 };
 
 export const reviewsApi = {
-  create(input: ReviewInput): Promise<Review> {
-    return request<Review>("/api/reviews", { method: "POST", body: input });
+  create(token: string, input: ReviewInput): Promise<Review> {
+    return request<Review>("/api/reviews", { method: "POST", token, body: input });
   },
   byCar(carId: number): Promise<Review[]> {
     return request<Review[]>(`/api/reviews/car/${carId}`);

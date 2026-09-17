@@ -61,6 +61,7 @@ export default function DashboardOverview() {
   if (error) return <p className="text-red-600">{error}</p>;
 
   const activeCars = cars.filter((c) => c.status === "ACTIVE").length;
+  const totalViews = cars.reduce((sum, c) => sum + (c.viewCount ?? 0), 0);
   const pending = bookings.filter((b) => b.status === "PENDING").length;
   const confirmed = bookings.filter((b) => b.status === "CONFIRMED").length;
   const upcoming = bookings
@@ -76,6 +77,7 @@ export default function DashboardOverview() {
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total cars" value={cars.length} to="/dashboard/cars" accent="text-slate-900" />
         <StatCard label="Active listings" value={activeCars} to="/dashboard/cars" accent="text-emerald-600" />
+        <StatCard label="Total views" value={totalViews} to="/dashboard/cars" accent="text-violet-600" />
         <StatCard label="Pending bookings" value={pending} to="/dashboard/bookings" accent="text-amber-600" />
         <StatCard label="Confirmed bookings" value={confirmed} to="/dashboard/bookings" accent="text-sky-600" />
       </div>
@@ -139,7 +141,28 @@ export default function DashboardOverview() {
                 <span className="font-medium text-slate-800">
                   {c.make} {c.model} <span className="text-xs text-slate-400">{c.city}</span>
                 </span>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1 text-sm font-semibold text-violet-600">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                    {c.viewCount ?? 0}
+                  </span>
                   <span className="text-sm font-semibold text-slate-600">{formatPrice(c.dailyPrice)}</span>
                   <StatusBadge status={c.status} />
                 </div>

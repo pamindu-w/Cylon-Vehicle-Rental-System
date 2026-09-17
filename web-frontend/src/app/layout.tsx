@@ -13,7 +13,7 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "LankaWheels — Sri Lanka Car Rentals",
   description:
-    "Find and book rental cars in Sri Lanka. Rent with a driver, no account needed. Locals and tourists welcome.",
+    "Find and book rental cars in Sri Lanka. Rent with a driver. Locals and tourists welcome.",
 };
 
 export default function RootLayout({

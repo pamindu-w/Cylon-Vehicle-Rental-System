@@ -64,8 +64,8 @@ export default function HomePage() {
             <span className="text-amber-600">with or without a driver</span>
           </h1>
           <p className="mt-4 max-w-xl text-slate-600">
-            Book a car as a guest — no account needed. Locals and tourists can choose flexible
-            date ranges, optional drivers, and verified local owners.
+            Create a free renter account and book with flexible date ranges, optional drivers, and
+            verified local owners — all in minutes.
           </p>
 
           <div className="mt-8 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
